@@ -13,13 +13,15 @@
 \usepackage{cite}
 \usepackage{balance}
 
-% Ensure strict column separation and float margins (no column bleeding)
+% Strict column separation and float margins (zero overlapping, strict 4 pages)
 \setlength{\columnsep}{18pt}
-\setlength{\textfloatsep}{5pt plus 1pt minus 1pt}
-\setlength{\floatsep}{5pt plus 1pt minus 1pt}
-\setlength{\intextsep}{5pt plus 1pt minus 1pt}
-\setlength{\abovecaptionskip}{3pt}
-\setlength{\belowcaptionskip}{3pt}
+\setlength{\textfloatsep}{4pt plus 1pt minus 1pt}
+\setlength{\floatsep}{4pt plus 1pt minus 1pt}
+\setlength{\intextsep}{4pt plus 1pt minus 1pt}
+\setlength{\dbltextfloatsep}{5pt plus 1pt minus 1pt}
+\setlength{\dblfloatsep}{5pt plus 1pt minus 1pt}
+\setlength{\abovecaptionskip}{2pt}
+\setlength{\belowcaptionskip}{2pt}
 
 \hypersetup{
     colorlinks=true,
@@ -81,11 +83,28 @@ where $\mathbb{I}(\cdot)$ is the indicator function. The KNORA-Eliminate rule se
 We acquired the official PKLot Concept Drift dataset \cite{almeida2015pklot, almeida2018adapting}, consisting of 82 chronological days (619,466 segmented parking space instances, 59 uniform LBP features) spanning three physical setups:
 \begin{itemize}
     \item \textbf{UFPR04 (Days 1--22):} Camera Setup 1 at UFPR (105,837 instances).
-    \item \textbf{UFPR05 (Days 23--50):} Sudden camera relocation on the same lot (\textit{Sensor Drift}, 257,849 instances).
-    \item \textbf{PUCPR (Days 51--82):} Relocation to a new university campus with distinct asphalt texture and foliage (\textit{Environment Drift}, 255,780 instances).
+    \item \textbf{UFPR05 (Days 23--50):} Camera relocation on the same lot (\textit{Sensor Drift}, 257,849 instances).
+    \item \textbf{PUCPR (Days 51--82):} Relocation to a new university campus with distinct asphalt and foliage (\textit{Environment Drift}, 255,780 instances).
 \end{itemize}
 
-On each day $t$, all instances of day $t$ are evaluated as an unlabelled test batch. Following evaluation, a supervisor annotates 50 positive (occupied) and 50 negative (empty) instances sampled from day $t$ to train a new Hoeffding Tree and update $W$. Our exact replication of Dynse achieved a mean classification accuracy of \textbf{89.53\% ($\pm 7.38\%$)} across all 82 days (versus 92.20\% published, with the difference attributable to random sampling of the daily 50/class training budget).
+On each day $t$, all instances of day $t$ are evaluated as an unlabelled test batch. Following evaluation, a supervisor annotates 50 positive and 50 negative instances sampled from day $t$ to train a new Hoeffding Tree and update $W$. Our exact replication of Dynse achieved a mean accuracy of \textbf{89.53\% ($\pm 7.38\%$)} across all 82 days (versus 92.20\% published, with the difference attributable to random sampling of the daily 50/class training budget).
+
+% TOP OF PAGE 3 TWO-COLUMN FLOAT: Figures 1 and 2 side-by-side
+\begin{figure*}[t]
+\centering
+\begin{minipage}[t]{0.49\textwidth}
+    \centering
+    \includegraphics[width=\linewidth,height=3.3cm]{figures/accuracy_over_time.png}
+    \caption{PKLot 82-day chronological accuracy timeline comparing Dynse baseline with DART-X across UFPR04, UFPR05, and PUCPR setups.}
+    \label{fig:accuracy_time}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.49\textwidth}
+    \centering
+    \includegraphics[width=\linewidth,height=3.3cm]{figures/per_location_accuracy.png}
+    \caption{Per-location accuracy breakdown across UFPR04, UFPR05, and PUCPR environments demonstrating reduced variance.}
+    \label{fig:per_location}
+\end{minipage}
+\end{figure*}
 
 \section{The DART-X Framework}
 \label{sec:dartx}
@@ -135,7 +154,7 @@ The continuous reliability score of classifier $C_i$ is computed as:
 where $P(y_j \mid \mathbf{x}_j, C_i)$ is the posterior probability assigned by classifier $C_i$ to true neighbor label $y_j$.
 
 \subsection{Module 4: Switching Hysteresis}
-To suppress model oscillations on ambiguous boundaries, DART-X tracks the incumbent model $C_{\text{inc}}$ across successive queries. The candidate model $C_{\text{best}} = \arg\max_{C_i \in \mathcal{P}} R_i(\mathbf{x})$ is only selected if it exceeds the incumbent's reliability by hysteresis margin $h = 0.04$:
+To suppress model oscillations on ambiguous boundaries, DART-X tracks incumbent model $C_{\text{inc}}$. Candidate $C_{\text{best}} = \arg\max_{C_i \in \mathcal{P}} R_i(\mathbf{x})$ is only selected if it exceeds the incumbent's reliability by hysteresis margin $h = 0.04$:
 \begin{equation}
     C^*(\mathbf{x}) = \begin{cases}
         C_{\text{best}}, & \text{if } R_{\text{best}} - R_{\text{inc}} \ge h \\
@@ -182,6 +201,23 @@ All transitions and suppressed switches are audited. If the maximum candidate re
 \end{algorithmic}
 \end{algorithm}
 
+% TOP OF PAGE 4 TWO-COLUMN FLOAT: Figures 3 and 4 side-by-side
+\begin{figure*}[t]
+\centering
+\begin{minipage}[t]{0.49\textwidth}
+    \centering
+    \includegraphics[width=\linewidth,height=3.3cm]{figures/confusion_matrix.png}
+    \caption{Normalized aggregate confusion matrices over 619,466 test instances comparing Dynse baseline and DART-X framework.}
+    \label{fig:confusion_matrix}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.49\textwidth}
+    \centering
+    \includegraphics[width=\linewidth,height=3.3cm]{figures/ablation_study.png}
+    \caption{DART-X component ablation study on PKLot benchmark isolating the contribution of adaptive windowing and hysteresis.}
+    \label{fig:ablation}
+\end{minipage}
+\end{figure*}
+
 \section{Experimental Results \& Discussion}
 \label{sec:results}
 
@@ -209,26 +245,14 @@ Per-Instance Latency & \textbf{185.4} $\mu$s & 320.8 $\mu$s & $+135.4\text{ }\mu
 }
 \end{table}
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=\columnwidth,height=3.6cm]{figures/accuracy_over_time.png}
-\caption{PKLot 82-day chronological accuracy timeline comparing Dynse baseline with DART-X across UFPR04, UFPR05, and PUCPR setups.}
-\label{fig:accuracy_time}
-\end{figure}
-
 \subsection{Head-to-Head Benchmark Evaluation}
-Table \ref{tab:comparison} reports the comprehensive comparative performance across all 82 days. DART-X demonstrates superior overall accuracy (\textbf{89.68\%}) and notably reduces standard deviation from \textbf{7.38\% down to 6.61\%}, proving enhanced stability across environmental shifts.
+Table \ref{tab:comparison} reports comparative performance across all 82 days. DART-X achieves higher overall accuracy (\textbf{89.68\%}) and notably reduces standard deviation from \textbf{7.38\% down to 6.61\%}, proving enhanced stability across environmental shifts.
 
 Fig. \ref{fig:accuracy_time} depicts the 82-day timeline. In setup UFPR04 (Days 1--22), which featured severe weather variations and wet asphalt reflections, DART-X achieved a $+1.01\%$ gain over Dynse. Notably, on volatile days: Day 2: DART-X \textbf{86.26\%} vs. Dynse 76.38\% ($+9.89\%$); Day 4: DART-X \textbf{80.57\%} vs. Dynse 73.22\% ($+7.34\%$); Day 5: DART-X \textbf{81.16\%} vs. Dynse 73.88\% ($+7.28\%$).
 
-Across all 619,466 test predictions, normalized confusion matrix analysis shows: Dynse achieved 94.20\% specificity (268,076 empty spaces) and 90.97\% sensitivity (304,662 occupied spaces). DART-X achieved 93.79\% specificity (266,924 empty spaces) and 90.62\% sensitivity (303,471 occupied spaces), confirming balanced error characteristics.
+Fig. \ref{fig:per_location} highlights per-location performance. In PUCPR, Dynse achieves slightly higher accuracy (95.27\% vs. 94.85\%), but DART-X delivers lower variance ($\sigma = 3.11\%$ vs. $4.43\%$).
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=\columnwidth,height=3.6cm]{figures/ablation_study.png}
-\caption{DART-X component ablation study on PKLot benchmark isolating the contribution of adaptive windowing and hysteresis.}
-\label{fig:ablation}
-\end{figure}
+Fig. \ref{fig:confusion_matrix} displays normalized confusion matrices over 619,466 test predictions. Dynse achieved 94.20\% specificity (268,076 empty spaces) and 90.97\% sensitivity (304,662 occupied spaces). DART-X achieved 93.79\% specificity (266,924 empty spaces) and 90.62\% sensitivity (303,471 occupied spaces), confirming balanced error characteristics.
 
 \subsection{Ablation Study}
 To rigorously quantify individual component contributions, we evaluated four distinct configurations on the identical 82-day sequence:
@@ -243,7 +267,7 @@ Fig. \ref{fig:ablation} confirms that the \textbf{Adaptive Window Manager is the
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=\columnwidth,height=4.4cm]{figures/synthetic_drifts.png}
+\includegraphics[width=\columnwidth,height=4.0cm]{figures/synthetic_drifts.png}
 \caption{Synthetic stress tests: (a) Abrupt drift recovery, (b) Gradual drift, (c) Robustness to label noise, and (d) Robustness to class imbalance.}
 \label{fig:synthetic}
 \end{figure}
