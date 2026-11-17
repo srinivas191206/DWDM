@@ -1,0 +1,33 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.class
+
+# Maven
+target/
+.m2/
+tools/
+
+# Large Datasets & Archives (>100MB exceeds GitHub push limit)
+# Direct download instructions provided in README.md
+datasets/PKLot-ConceptDrift.tar.gz
+datasets/PKLot-ConceptDrift/
+PKLot-ConceptDrift/
+*.tar.gz
+*.zip
+!dartx_paper_overleaf.zip
+
+# OS and IDE generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+.idea/
+.vscode/
+*.iml
+*.sublime-project
+*.sublime-workspace

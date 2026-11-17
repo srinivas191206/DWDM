@@ -1,0 +1,5 @@
+metric,overall,ufpr04,ufpr05,pucpr
+mean_accuracy,89.53,85.49,86.14,95.27
+std_accuracy,7.38,7.49,5.57,4.43
+avg_daily_inference_ms,1400.6,-,-,-
+avg_instance_inference_us,185.41,-,-,-
