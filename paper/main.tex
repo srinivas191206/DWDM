@@ -1,4 +1,4 @@
-\documentclass[journal,10pt,twocolumn]{IEEEtran}
+\documentclass[conference,10pt]{IEEEtran}
 
 \usepackage[utf8]{inputenc}
 \usepackage{amsmath,amssymb,amsfonts}
@@ -13,12 +13,11 @@
 \usepackage{cite}
 \usepackage{balance}
 
-% Tighten float and caption spacing for strict 4-page layout
+% Ensure strict column separation and float margins (no column bleeding)
+\setlength{\columnsep}{18pt}
 \setlength{\textfloatsep}{5pt plus 1pt minus 1pt}
 \setlength{\floatsep}{5pt plus 1pt minus 1pt}
 \setlength{\intextsep}{5pt plus 1pt minus 1pt}
-\setlength{\dbltextfloatsep}{6pt plus 1pt minus 1pt}
-\setlength{\dblfloatsep}{6pt plus 1pt minus 1pt}
 \setlength{\abovecaptionskip}{3pt}
 \setlength{\belowcaptionskip}{3pt}
 
@@ -34,15 +33,19 @@
 \title{DART-X: A Drift-Aware Reliability and Transition Framework for Dynamic Classifier Selection in Non-Stationary Streams}
 
 \author{
-    \IEEEauthorblockN{\textbf{Thalada Srinivas}} \quad \textbar \quad \IEEEauthorblockN{Roll No: \textbf{24026A0507}}\\
+    \IEEEauthorblockN{\textbf{Thalada Srinivas}}
     \IEEEauthorblockA{Department of Computer Science and Engineering\\
     Course: Data Warehousing and Data Mining (DWDM)}
+    \and
+    \IEEEauthorblockN{\textbf{Roll No: 24026A0507}}
+    \IEEEauthorblockA{B.Tech Computer Science and Engineering\\
+    University Research Assignment}
 }
 
 \maketitle
 
 \begin{abstract}
-Dynamic Classifier Selection (DCS) provides an effective paradigm for classifying non-stationary streams by estimating localized classifier competence. In this research, we inspect, compile, and empirically reproduce the published baseline framework \textit{Dynse} (Almeida et al., \textit{Expert Systems with Applications}, 2018) across the full 82-day chronological PKLot concept drift benchmark (619,466 instances, 59 LBP features), reproducing an 89.53\% ($\pm 7.38\%$) mean baseline accuracy. Inspection reveals that Dynse suffers from rigid validation-window sizing that retains obsolete pre-drift samples, uncalibrated discrete hit-count scoring, erratic model thrashing between adjacent instances, and the lack of a low-reliability fallback strategy. To overcome these deficiencies, we propose \textbf{DART-X} (Drift-Aware Reliability and Transition Framework), introducing streaming Welford centroid monitoring, adaptive window collapse and expansion ($M(t) \in [1, 6]$), distance-weighted probability reliability calibration, switching hysteresis ($h = 0.04$), transition logging, and fallback voting. Evaluated on the exact 82-day PKLot stream, DART-X improves mean accuracy to \textbf{89.68\%}, reduces standard deviation to \textbf{6.61\%} (higher stability), improves initial camera accuracy on UFPR04 to \textbf{86.50\%} ($+1.01\%$), and eliminates \textbf{57,503 unnecessary model switches} (13.5\% reduction in thrashing). An ablation study confirms that the adaptive validation window provides a \textbf{+0.80\% gain} over static windowing, and synthetic experiments show a \textbf{50\% reduction in recovery time} after abrupt drift.
+Dynamic Classifier Selection (DCS) provides an effective paradigm for classifying non-stationary data streams by estimating localized classifier competence. In this research, we inspect, compile, and empirically reproduce the published baseline framework \textit{Dynse} (Almeida et al., \textit{Expert Systems with Applications}, 2018) across the full 82-day chronological PKLot concept drift benchmark (619,466 instances, 59 LBP features), reproducing an 89.53\% ($\pm 7.38\%$) mean baseline accuracy. Inspection reveals that Dynse suffers from rigid validation-window sizing that retains obsolete pre-drift samples, uncalibrated discrete hit-count scoring, erratic model thrashing between adjacent instances, and the lack of a low-reliability fallback strategy. To overcome these deficiencies, we propose \textbf{DART-X} (Drift-Aware Reliability and Transition Framework), introducing streaming Welford centroid monitoring, adaptive window collapse and expansion ($M(t) \in [1, 6]$), distance-weighted probability reliability calibration, switching hysteresis ($h = 0.04$), transition logging, and fallback voting. Evaluated on the exact 82-day PKLot stream, DART-X improves mean accuracy to \textbf{89.68\%}, reduces standard deviation to \textbf{6.61\%} (higher stability), improves initial camera accuracy on UFPR04 to \textbf{86.50\%} ($+1.01\%$), and eliminates \textbf{57,503 unnecessary model switches} (13.5\% reduction in thrashing). An ablation study confirms that the adaptive validation window provides a \textbf{+0.80\% gain} over static windowing, and synthetic experiments show a \textbf{50\% reduction in recovery time} after abrupt drift.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -100,9 +103,9 @@ Streaming centroid divergence between consecutive days is computed as:
 The stream drift state is governed by the state machine:
 \begin{equation}
     \text{State}(t) = \begin{cases}
-        \text{DRIFT\_CONFIRMED}, & \text{if } \mathcal{D}_{\text{drift}}(t) \ge \tau_{\text{drift}} \\
-        \text{SUSPECTED\_DRIFT}, & \text{if } \tau_{\text{warn}} \le \mathcal{D}_{\text{drift}}(t) < \tau_{\text{drift}} \\
-        \text{TRANSITION\_RECOVERY}, & \text{if cooldown timer } c > 0 \\
+        \text{CONFIRMED}, & \text{if } \mathcal{D}_{\text{drift}} \ge \tau_{\text{drift}} \\
+        \text{SUSPECTED}, & \text{if } \tau_{\text{warn}} \le \mathcal{D}_{\text{drift}} < \tau_{\text{drift}} \\
+        \text{RECOVERY}, & \text{if cooldown } c > 0 \\
         \text{STABLE}, & \text{otherwise},
     \end{cases}
 \end{equation}
@@ -112,10 +115,10 @@ where $\tau_{\text{drift}} = 0.15$ and $\tau_{\text{warn}} = 0.075$.
 Rather than maintaining a rigid window of $M = 4$ batches, DART-X modulates validation window capacity $M(t) \in [1, 6]$ dynamically:
 \begin{equation}
     M(t) = \begin{cases}
-        1, & \text{if } \text{State} = \text{DRIFT\_CONFIRMED} \\
-        \max(1, M(t-1) - 1), & \text{if } \text{State} = \text{SUSPECTED\_DRIFT} \\
-        3, & \text{if } \text{State} = \text{TRANSITION\_RECOVERY} \\
-        \min(6, M(t-1) + 1), & \text{if } \text{State} = \text{STABLE}.
+        1, & \text{State} = \text{CONFIRMED} \\
+        \max(1, M(t-1) - 1), & \text{State} = \text{SUSPECTED} \\
+        3, & \text{State} = \text{RECOVERY} \\
+        \min(6, M(t-1) + 1), & \text{State} = \text{STABLE}.
     \end{cases}
 \end{equation}
 \textit{Decision Rationale:} When drift is confirmed, collapsing $M(t) = 1$ instantly purges obsolete pre-drift validation samples. Under stationary conditions, expanding to $M(t) = 6$ increases neighborhood density for superior local competence resolution.
@@ -135,7 +138,7 @@ where $P(y_j \mid \mathbf{x}_j, C_i)$ is the posterior probability assigned by c
 To suppress model oscillations on ambiguous boundaries, DART-X tracks the incumbent model $C_{\text{inc}}$ across successive queries. The candidate model $C_{\text{best}} = \arg\max_{C_i \in \mathcal{P}} R_i(\mathbf{x})$ is only selected if it exceeds the incumbent's reliability by hysteresis margin $h = 0.04$:
 \begin{equation}
     C^*(\mathbf{x}) = \begin{cases}
-        C_{\text{best}}, & \text{if } R_{\text{best}}(\mathbf{x}) - R_{\text{inc}}(\mathbf{x}) \ge h \\
+        C_{\text{best}}, & \text{if } R_{\text{best}} - R_{\text{inc}} \ge h \\
         C_{\text{inc}}, & \text{otherwise}.
     \end{cases}
 \end{equation}
@@ -143,7 +146,10 @@ To suppress model oscillations on ambiguous boundaries, DART-X tracks the incumb
 \subsection{Module 5 \& 6: Transition Logging \& Fallback Mechanism}
 All transitions and suppressed switches are audited. If the maximum candidate reliability falls below a safety threshold ($\max_i R_i(\mathbf{x}) < \theta_{\text{safety}} = 0.35$), local DCS is bypassed in favor of a recency-weighted pool ensemble vote:
 \begin{equation}
-    \hat{y}(\mathbf{x}) = \arg\max_{c \in \{-1, +1\}} \sum_{C_i \in \mathcal{P}} \exp\left(-\lambda \cdot \text{age}(C_i)\right) \cdot \mathbb{I}(C_i(\mathbf{x}) = c).
+\begin{aligned}
+    \hat{y}(\mathbf{x}) = \arg\max_{c \in \{-1, +1\}} \sum_{C_i \in \mathcal{P}} & \exp\left(-\lambda \cdot \text{age}(C_i)\right) \\
+    & \times \mathbb{I}\left(C_i(\mathbf{x}) = c\right).
+\end{aligned}
 \end{equation}
 
 \begin{algorithm}[t]
@@ -205,7 +211,7 @@ Per-Instance Latency & \textbf{185.4} $\mu$s & 320.8 $\mu$s & $+135.4\text{ }\mu
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=\columnwidth,height=3.8cm]{figures/accuracy_over_time.png}
+\includegraphics[width=\columnwidth,height=3.6cm]{figures/accuracy_over_time.png}
 \caption{PKLot 82-day chronological accuracy timeline comparing Dynse baseline with DART-X across UFPR04, UFPR05, and PUCPR setups.}
 \label{fig:accuracy_time}
 \end{figure}
@@ -219,7 +225,7 @@ Across all 619,466 test predictions, normalized confusion matrix analysis shows:
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=\columnwidth,height=3.8cm]{figures/ablation_study.png}
+\includegraphics[width=\columnwidth,height=3.6cm]{figures/ablation_study.png}
 \caption{DART-X component ablation study on PKLot benchmark isolating the contribution of adaptive windowing and hysteresis.}
 \label{fig:ablation}
 \end{figure}
@@ -237,7 +243,7 @@ Fig. \ref{fig:ablation} confirms that the \textbf{Adaptive Window Manager is the
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=\columnwidth,height=4.6cm]{figures/synthetic_drifts.png}
+\includegraphics[width=\columnwidth,height=4.4cm]{figures/synthetic_drifts.png}
 \caption{Synthetic stress tests: (a) Abrupt drift recovery, (b) Gradual drift, (c) Robustness to label noise, and (d) Robustness to class imbalance.}
 \label{fig:synthetic}
 \end{figure}
